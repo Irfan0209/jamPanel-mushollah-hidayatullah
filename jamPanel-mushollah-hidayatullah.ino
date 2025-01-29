@@ -49,6 +49,7 @@ noEEPROM    value
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <Arduino.h>
 
 #include <HJS589.h>
 
@@ -624,4 +625,57 @@ int I2C_ClearBus() {
   pinMode(SDA, INPUT); // and reset pins as tri-state inputs which is the default state on reset
   pinMode(SCL, INPUT);
   return 0; // all ok
+}
+
+void parsingData(String text,float data1=0,float data2=0,int data3=0){
+  
+
+//String data = "0.1234-111.2345-7"; // Data string
+char charData[20];                 // Buffer untuk char array
+char *token;
+char *savePtr;                      // Pointer untuk strtok_r()
+float angkaFloat[10];                // Array untuk float
+int angkaInt[10];                    // Array untuk int
+int indexFloat = 0, indexInt = 0;     // Indeks array
+
+bool prosesSelesai = false;           // Flag untuk menandakan proses selesai
+
+
+
+  // Konversi String ke char array
+  text.toCharArray(charData, sizeof(charData));
+
+  // Mulai pemrosesan token pertama
+  token = strtok_r(charData, "-", &savePtr);
+
+
+
+  if (!prosesSelesai && token != NULL) {
+    Serial.print("Nilai ditemukan: ");
+    Serial.println(token);
+
+    // Cek apakah angka mengandung titik (float) atau tidak (int)
+    if (strchr(token, '.') != NULL) {
+      angkaFloat[indexFloat] = atof(token);
+      Serial.print("Disimpan sebagai float: ");
+      Serial.println(angkaFloat[indexFloat], 5);
+      indexFloat++;
+    } else {
+      angkaInt[indexInt] = atoi(token);
+      Serial.print("Disimpan sebagai int: ");
+      Serial.println(angkaInt[indexInt]);
+      data3 = angkaInt[indexInt];
+      indexInt++;
+    }
+
+    // Ambil nilai berikutnya pada loop berikutnya
+    token = strtok_r(NULL, "-", &savePtr);
+  } else if (!prosesSelesai) {
+    Serial.println("\nProses parsing selesai!");
+    prosesSelesai = true; // Set flag agar tidak memproses lagi
+  }
+
+//  // Kode lain di loop() tetap berjalan lancar
+//  delay(100); // Bisa diganti dengan tugas lain seperti update panel P10
+
 }
