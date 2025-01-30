@@ -1,7 +1,7 @@
 void runningInfoMode1(){
   static unsigned int x;
   if (reset_x !=0) {x=0;reset_x = 0;}
-  if(adzan==1 || flag1==0) { return; }
+  //if(adzan==1 || flag1==0) { return; }
   
   int Speed = speedText;
   
@@ -147,7 +147,7 @@ void runAnimasiDate(){
         Disp.drawText(Disp.width() - x,0, buff_date);
       }
       else {  
-        flag1=1;
+//        flag1=1;
         Disp.clear();
         x=0; 
         reset_x=1;
@@ -196,7 +196,7 @@ void runAnimasiSholat(){
     list++; 
     if(list==4){list=5;} 
     
-    if(list==7){list=0; Disp.clear(); show=ANIM_JAM; flag1=1;}//else{list=list;}
+    if(list==7){list=0; Disp.clear(); show=ANIM_JAM; }//else{list=list;}
   }
 
   String sholat = jadwal[list];
@@ -257,15 +257,119 @@ void drawAzzan()
       }
     if ((Tmr-lsRn)>1500 and (ct > limit))
       {
-        sholatNow=-1;
-        flag1=1;
-        adzan = 0;
-        (mode==1)?show = ANIM_JAM : show = ANIM_ZONK;
+        
+        //flag1=1;
+        
+        show = ANIM_JAM;
         Disp.clear();
         ct = 0;
         Buzzer(0);
         Serial.println("adzan end");
       }
+  }
+
+  void drawIqomah()  // Countdown Iqomah (9 menit)
+  {  
+    // check RunSelector
+    //if(!dwDo(DrawAdd)) return;
+
+    static uint16_t   lsRn;
+    uint16_t          Tmr = millis();
+    static int        ct;
+    int               mnt, scd,cn_l ;
+    char              locBuff[6];           
+    
+//    cn_l  = (Iqomah[SholatNow]*60);
+//    Serial.println(String() + "Iqomah:" + Iqomah[SholatNow]*60);
+//     Serial.println(String() + "SholatNow:" + SholatNow);
+    
+    //Disp.drawRect(1,2,62,13);
+    if((Tmr-lsRn) > 1000 and ct <=cn_l)
+      {
+          lsRn = Tmr;        
+          mnt = floor((cn_l-ct)/60); 
+          scd = (cn_l-ct)%60;
+          if(mnt>0) {sprintf(locBuff,"%02d:%02d",mnt,scd);}
+            else    {sprintf(locBuff,"%02d",scd);}
+          if((ct%2) == 0){
+          fType(0); //font iqomah
+          dwCtr(0,-1,"IQOMAH");}          
+          fType(0);
+          dwCtr(0,8,locBuff);
+          if (ct> (cn_l-10)) Buzzer(1);   // Buzzer on 2 seccon before Iqomah
+          ct++;
+         //DoSwap = true;
+             
+      }
+    if (ct > cn_l)
+      {
+       show = ANIM_JAM;
+       Disp.clear();
+       ct = 0;
+       Buzzer(0);
+      }    
+  }
+
+void blinkBlock()
+  {
+    // check RunSelector
+    //if(!dwDo(DrawAdd)) return;
+
+    static uint16_t   lsRn;
+    static uint16_t   ct, ct_l;
+    uint16_t          Tmr = millis();
+    int               mnt, scd;//
+    char              locBuff[6];//
+
+//    if(jumat)       {ct_l = Prm.JM * 60;}
+//    else            {ct_l = Prm.SO * 60;}
+    //jumat =false;
+     
+    if((Tmr-lsRn)> 900)
+      { lsRn=Tmr;
+      
+        //Disp.drawChar(1, 1 , ct);
+        mnt = floor((ct_l-ct)/60);
+        scd = (ct_l-ct)%60;
+        sprintf(locBuff,"%d:%02d",mnt,scd);
+        fType(2);
+      //  Disp.drawText(1,7,"SHOLAT"); // tampil tunggu sholat
+//////////////////////////////jam besar
+uint16_t y;
+ char  BuffJ[6];
+    char  BuffM[6];
+    char  BuffD[6];
+    sprintf(BuffJ,"%02d",now.Hour());
+    sprintf(BuffM,"%02d",now.Minute());
+ //   sprintf(BuffD,"%02d",now.second());
+    fType(2);
+    Disp.drawText(0,7,BuffJ);
+    Disp.drawText(15,7,BuffM);
+  //  fType(2);
+    Disp.drawText(11,7,":");
+ //   Disp.drawRect(15,y+3,16,y+5,1);
+ //   Disp.drawRect(15,y+10,16,y+12,1);
+    
+    ///////////////////////////////////////////////////end//////////////////
+
+      
+      delay(500);
+        if((ct%2) == 0)
+          { 
+        //    Disp.drawFilledRect(DWidth-3, DHeight-3, DWidth-2, DHeight-2);
+              delay(500);
+            }
+        
+        ct++;}
+    if (ct> ct_l) 
+      { 
+        adzan = false;
+        ct = 0;
+        sholatNow = -1;
+        show = ANIM_JAM;
+        Disp.clear();
+      }
+   // Disp.drawText(1,7,String(ct_l-ct)); 
   }
 /*=====================================================================================================================================*/
 /*========================================================================================================================================================*/

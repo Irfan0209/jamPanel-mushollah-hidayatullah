@@ -92,6 +92,7 @@ double times[sizeof(TimeName)/sizeof(char*)];
 
 int maxday[]            = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 int ihtiSholat[]        = {0,0,0,0,0};
+uint8_t Iqomah[8] = {0,5,0,0,5,5,3,5};
 
 // Durasi waktu iqomah
 struct Config {
@@ -168,7 +169,7 @@ byte   reset_x       = 0;
 //byte   tampilan      = 1;
 byte   mode          = 1;
 byte   list          = 0; 
-bool   flag1         = 1;//variabel untuk menyimpan status animasi running text  
+//bool   flag1         = 1;//variabel untuk menyimpan status animasi running text  
 int    speedDate     = 70; // Kecepatan default date
 int    speedText     = 60; // Kecepatan default text  
 /*==============================*/
@@ -178,7 +179,9 @@ enum Show{
   ANIM_JAM,
   ANIM_DATE,
   ANIM_SHOLAT,
-  ANIM_ADZAN
+  ANIM_ADZAN,
+  ANIM_IQOMAH,
+  ANIM_BLINK
 };
 
 Show show = ANIM_JAM;
