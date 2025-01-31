@@ -51,7 +51,7 @@ noEEPROM    value
 #include <ESP8266WebServer.h>
 #include <Arduino.h>
 
-#include <HJS589.h>
+#include <DMDESP.h>
 
 #include <Wire.h>
 #include <RtcDS3231.h>
@@ -66,11 +66,11 @@ noEEPROM    value
 #include <fonts/Small4x6.h>
 
 //SETUP DMD
-#define DISPLAYS_WIDE 1
+#define DISPLAYS_WIDE 2
 #define DISPLAYS_HIGH 1
 
-#define BUZZ  3 // PIN BUZZER
-#define LED   2 // LED Internal
+#define BUZZ  D4 // PIN BUZZER
+//#define LED   2 // LED Internal
 
 #define Font0 SystemFont5x7
 #define Font1 Font4x6
@@ -85,7 +85,7 @@ noEEPROM    value
 
 //create object
 RtcDS3231<TwoWire> Rtc(Wire);
-HJS589  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan (KOLOM,BARIS)
+DMDESP  Disp(DISPLAYS_WIDE, DISPLAYS_HIGH);  // Jumlah Panel P10 yang digunakan (KOLOM,BARIS)
 RtcDateTime now;
 ESP8266WebServer server(80);
 double times[sizeof(TimeName)/sizeof(char*)];
@@ -453,13 +453,13 @@ void loadFromEEPROM() {
 void setup() {
   Serial.begin(115200);
   pinMode(BUZZ, OUTPUT); 
-  pinMode(LED, OUTPUT);
+  //pinMode(LED, OUTPUT);
   EEPROM.begin(EEPROM_SIZE); // Inisialisasi EEPROM dengan ukuran yang ditentukan
-  digitalWrite(BUZZ,HIGH);
-  delay(100);
   digitalWrite(BUZZ,LOW);
+  delay(100);
+  digitalWrite(BUZZ,HIGH);
   // Load data dari EEPROM
-  loadFromEEPROM();
+  //loadFromEEPROM();
 
   int rtn = I2C_ClearBus(); // clear the I2C bus first before calling Wire.begin()
     if (rtn != 0) {
@@ -480,7 +480,7 @@ void setup() {
   Rtc.Enable32kHzPin(false);
   Rtc.SetSquareWavePin(DS3231SquareWavePin_ModeNone); 
   
-  for(int i = 0; i < 2; i++){
+  for(int i = 0; i < 4; i++){
       Buzzer(1);
       delay(80);
       Buzzer(0);
@@ -488,35 +488,35 @@ void setup() {
   }
 
   Disp_init(); //Inisialisasi display
-  AP_init();   //Inisialisasi Access Pointt
+  //AP_init();   //Inisialisasi Access Pointt
   JadwalSholat();
 }
 
 void loop() {
 
-  server.handleClient(); // Menangani permintaan dari MIT App Inventor
+  //server.handleClient(); // Menangani permintaan dari MIT App Inventor
   check();
   islam();
-   
-  switch(show){
-    case ANIM_ZONK :
-     runningInfoMode2(); 
-    break;
-    case ANIM_JAM :
-     runAnimasiJam();
-     runningInfoMode1(); 
-    break;
-    case ANIM_DATE :
-     runAnimasiDate();
-     runningInfoMode1(); 
-    break;
-    case ANIM_SHOLAT :
-     runAnimasiSholat();
-    break;
-    case ANIM_ADZAN :
-     drawAzzan();
-    break;
-  };
+   showAnimasi();
+//  switch(show){
+//    case ANIM_ZONK :
+//     runningInfoMode2(); 
+//    break;
+//    case ANIM_JAM :
+//     runAnimasiJam();
+//     runningInfoMode1(); 
+//    break;
+//    case ANIM_DATE :
+//     runAnimasiDate();
+//     runningInfoMode1(); 
+//    break;
+//    case ANIM_SHOLAT :
+//     runAnimasiSholat();
+//    break;
+//    case ANIM_ADZAN :
+//     drawAzzan();
+//    break;
+//  };
   // Serial.println(String()+"adzan          :"+adzan);
   // Serial.println(String()+"reset_x        :"+reset_x);
 }
@@ -529,13 +529,13 @@ void Buzzer(uint8_t state)
     if(!stateBuzzer) return;
     switch(state){
       case 0 :
-        digitalWrite(BUZZ,LOW);
-      break;
-      case 1 :
         digitalWrite(BUZZ,HIGH);
       break;
+      case 1 :
+        digitalWrite(BUZZ,LOW);
+      break;
       case 2 :
-        for(int i = 0; i < 5; i++){ digitalWrite(BUZZ,HIGH); delay(80); digitalWrite(BUZZ,LOW); delay(80); }
+        for(int i = 0; i < 5; i++){ digitalWrite(BUZZ,LOW); delay(80); digitalWrite(BUZZ,HIGH); delay(80); }
       break;
     };
   }
