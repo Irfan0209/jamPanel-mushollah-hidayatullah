@@ -62,8 +62,10 @@ noEEPROM    value
 
 #include <fonts/SystemFont5x7.h>
 #include <fonts/Font4x6.h>
-#include <fonts/EMSans8x16.h>
-#include <fonts/Small4x6.h>
+#include <fonts/System4x7.h>
+#include <fonts/SmallCap4x6.h>
+#include <fonts/EMSans6x16.h>
+//#include <fonts/Font4x6.h>
 
 //SETUP DMD
 #define DISPLAYS_WIDE 2
@@ -74,8 +76,9 @@ noEEPROM    value
 
 #define Font0 SystemFont5x7
 #define Font1 Font4x6
-#define Font2 EMSans8x16 
-#define Font3 Small4x7
+#define Font2 System4x7 
+#define Font3 SmallCap4x6
+#define Font4 EMSans6x16
 //////////hijriyah
 #define epochHijriah          1948439.5f //math.harvard.edu
 #define tambahKurangHijriah   0
@@ -93,9 +96,9 @@ double times[sizeof(TimeName)/sizeof(char*)];
 
 int maxday[]            = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 int ihtiSholat[]        = {0,0,0,0,0};
-uint8_t iqomah[] = {0,5,0,0,5,5,3};
-uint8_t displayBlink[] = {0,5,0,0,5,5,3};
-uint8_t dataIhty[] = {0,5,0,0,5,5,3};
+uint8_t iqomah[] = {1,1,1,1,1,1,1};
+uint8_t displayBlink[] = {1,1,1,1,1,1,1};
+uint8_t dataIhty[] = {0,0,0,0,0,0,0};
 
 // Durasi waktu iqomah
 struct Config {
@@ -157,7 +160,7 @@ String setTanggal    = "01-01-2024";
 String setText       = "Selamat Datang!";
 String info1[150];
 String info2[150];
-int    brightness    = 100;
+int    brightness    = 50;
 char   text[200] ;
 bool   adzan         = 0;
 bool   stateBuzzer;
@@ -183,7 +186,7 @@ int indexText;
 enum Show{
   ANIM_ZONK,
   ANIM_JAM,
-  ANIM_DATE,
+  ANIM_TEXT,
   ANIM_SHOLAT,
   ANIM_ADZAN,
   ANIM_IQOMAH,
@@ -482,7 +485,7 @@ void loadFromEEPROM() {
   Serial.println(String()+"loadedPassword:"+loadedPassword);
   Serial.println(String()+"stateBuzzer   :"+stateBuzzer);
 }
-RtcDateTime now = Rtc.GetDateTime();
+// now = Rtc.GetDateTime();
 void setup() {
   Serial.begin(115200);
   pinMode(BUZZ, OUTPUT); 
@@ -534,21 +537,30 @@ void loop() {
   
   switch(show){
     case ANIM_JAM :
-     drawTime();
-     drawDate();
-//     logo1(33);
-//     logo2(0);
+       drawTime();
+       logo1(47);
+       logo2(0);
+       drawDate();
+      
+    break;
+    case ANIM_TEXT :
+       drawTime();
+       logo1(47);
+       logo2(0);
+       runningText();
+       //jadwalSholat();
     break;
     case ANIM_ADZAN :
-     drawAzzan();
+       drawAzzan();
     break;
     case ANIM_IQOMAH :
-     drawIqomah();
+       drawIqomah();
     break;
     case ANIM_BLINK :
-     blinkBlock();
+       blinkBlock();
     break;
   };
+   jadwalSholat();
   // Serial.println(String()+"adzan          :"+adzan);
   // Serial.println(String()+"reset_x        :"+reset_x);
 }
@@ -584,7 +596,7 @@ void logo2 (uint8_t x){
 
 void Buzzer(uint8_t state)
   {
-    if(!stateBuzzer) return;
+    //if(!stateBuzzer) return;
     switch(state){
       case 0 :
         digitalWrite(BUZZ,HIGH);
