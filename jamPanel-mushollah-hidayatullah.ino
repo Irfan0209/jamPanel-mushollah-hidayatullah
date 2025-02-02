@@ -67,7 +67,7 @@ noEEPROM    value
 
 //SETUP DMD
 #define DISPLAYS_WIDE 2
-#define DISPLAYS_HIGH 1
+#define DISPLAYS_HIGH 2
 
 #define BUZZ  D4 // PIN BUZZER
 //#define LED   2 // LED Internal
@@ -82,6 +82,7 @@ noEEPROM    value
 
 // Ukuran EEPROM (pastikan cukup untuk semua data)
 #define EEPROM_SIZE 200
+//#include "icon.h"
 
 //create object
 RtcDS3231<TwoWire> Rtc(Wire);
@@ -92,7 +93,9 @@ double times[sizeof(TimeName)/sizeof(char*)];
 
 int maxday[]            = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 int ihtiSholat[]        = {0,0,0,0,0};
-uint8_t Iqomah[8] = {0,5,0,0,5,5,3,5};
+uint8_t iqomah[] = {0,5,0,0,5,5,3};
+uint8_t displayBlink[] = {0,5,0,0,5,5,3};
+uint8_t dataIhty[] = {0,5,0,0,5,5,3};
 
 // Durasi waktu iqomah
 struct Config {
@@ -172,6 +175,9 @@ byte   list          = 0;
 //bool   flag1         = 1;//variabel untuk menyimpan status animasi running text  
 int    speedDate     = 70; // Kecepatan default date
 int    speedText     = 60; // Kecepatan default text  
+float dataFloat[10];
+int   dataInteger[10];
+int indexText;
 /*==============================*/
 
 enum Show{
@@ -217,13 +223,13 @@ void Disp_init() {
 void AP_init(){
   // Konfigurasi hotspot WiFi dari ESP8266
   WiFi.softAPConfig(local_IP, gateway, subnet);
-  WiFi.softAP(ssid,password);
+  WiFi.softAP(ssid);
   IPAddress myIP = WiFi.softAPIP();
   Serial.print("AP IP address: ");
   Serial.println(myIP);
 
   // Atur server untuk menerima permintaan set waktu, tanggal, teks, dan kecerahan
-  server.on("/setPanel?", handleSetTime);
+  server.on("/setPanel", handleSetTime);
   server.begin();
   Serial.println("Server dimulai.");  
 }
@@ -233,139 +239,166 @@ void handleSetTime(){
   Serial.println("hansle run");
   static int flag = 0;
   Buzzer(1);
-  if (server.hasArg("jam")) {
-    setJam = server.arg("jam"); 
-
-    Serial.println("setJam:"+String(setJam));
+  
+  if (server.hasArg("status")) {//status
+    server.send(200, "text/plain", "CONNECTED");
+  }
+  
+  if (server.hasArg("Tm")) {//jam
+    setJam = server.arg("Tm"); 
+    //Serial.println("setJam:"+String(setJam));
     RtcDateTime now = Rtc.GetDateTime();
-    int jam   = setJam.substring(0, 2).toInt();
-    int menit = setJam.substring(3, 5).toInt();
-    int detik = setJam.substring(6, 8).toInt();
-    Rtc.SetDateTime(RtcDateTime(now.Year(), now.Month(), now.Day(), jam, menit, detik));
+    
+    // Memisahkan jam dan menit
+    int separatorIndex = setJam.indexOf(':');  // Mencari posisi ":"
+    int dashIndex = setJam.indexOf('-');       // Mencari posisi "-"
+
+    int jam = setJam.substring(0, separatorIndex).toInt();
+    int menit = setJam.substring(separatorIndex + 1, dashIndex).toInt();
+
+    // Memisahkan tanggal, bulan, dan tahun
+    int firstColonIndex = dashIndex + 1;
+    int secondColonIndex = setJam.indexOf(':', firstColonIndex);
+    int lastColonIndex = setJam.indexOf(':', secondColonIndex + 1);
+
+    int tanggal = setJam.substring(firstColonIndex, secondColonIndex).toInt();
+    int bulan = setJam.substring(secondColonIndex + 1, lastColonIndex).toInt();
+    int tahun = setJam.substring(lastColonIndex + 1).toInt();
+    
+    Rtc.SetDateTime(RtcDateTime(tanggal, bulan, tahun, jam, menit, now.Second()));
+    // Menampilkan hasil di Serial Monitor
+//    Serial.print("Jam   : "); Serial.println(jam);
+//    Serial.print("Menit : "); Serial.println(menit);
+//    Serial.print("Tanggal : "); Serial.println(tanggal);
+//    Serial.print("Bulan   : "); Serial.println(bulan);
+//    Serial.print("Tahun   : "); Serial.println(tahun);
+    flag=1;
     server.send(200, "text/plain", "Settingan jam berhasil diupdate");
   } 
-  if (server.hasArg("tanggal")) {
-    setTanggal = server.arg("tanggal"); 
 
-    Serial.println(String()+"setTanggal:"+setTanggal);
-    RtcDateTime now = Rtc.GetDateTime();
-    int day   = setTanggal.substring(0, 2).toInt();    // Ambil 2 karakter pertama (hari)
-    int month = setTanggal.substring(3, 5).toInt();  // Ambil karakter 4 dan 5 (bulan)
-    int year  = setTanggal.substring(6, 10).toInt();  // Ambil karakter 7 sampai 10 (tahun)
-    Rtc.SetDateTime(RtcDateTime(year, month, day, now.Hour(), now.Minute(), now.Second()));
-    server.send(200, "text/plain", "Settingan kalender berhasil diupdate");
-    flag=1;
-  }
   if (server.hasArg("text")) {
     setText = server.arg("text"); 
 
-    setText.toCharArray(text,setText.length()+1);
+    // Mencari posisi tanda "-"
+    int separatorIndex = setText.indexOf('-');
+
+    // Memisahkan angka (parameter tetap)
+    indexText = setText.substring(0, separatorIndex).toInt();
+
+    // Memisahkan teks dinamis
+    String dynamicText = setText.substring(separatorIndex + 1);
+
+    dynamicText.toCharArray(text,dynamicText.length()+1);
+    
     Serial.println(String()+"setText:"+setText);
     Serial.println(String()+"text   :"+text);
-    saveStringToEEPROM(66, setText);
+    
+    //saveStringToEEPROM(66, dynamicText);
     server.send(200, "text/plain", "Settingan nama berhasil diupdate");
   }
-  if (server.hasArg("brightness")) {
-    int input  = server.arg("brightness").toInt(); 
+  
+  if (server.hasArg("Br")) {
+    int input  = server.arg("Br").toInt(); 
     brightness = map(input,0,100,10,255);
    
-    Serial.println(String()+"brightness:"+brightness);
+    //Serial.println(String()+"brightness:"+brightness);
     Disp.setBrightness(brightness);
-    EEPROM.put(0, brightness);
+    //EEPROM.put(0, brightness);
     server.send(200, "text/plain", "Kecerahan berhasil diupdate");
   }
-  if (server.hasArg("speedDate")) {
-    int input = server.arg("speedDate").toInt(); // Atur kecepatan date
-    speedDate = map(input,0,100,10,80);
-    Serial.println(String()+"speedDate:"+speedDate);
-    EEPROM.put(4, speedDate);
-    server.send(200, "text/plain", "Kecepatan kalender berhasil diupdate");
-  }
-  if (server.hasArg("speedText")) {
-    int input = server.arg("speedText").toInt(); // Atur kecepatan text
+  
+  if (server.hasArg("Sptx")) {
+    int input = server.arg("Sptx").toInt(); // Atur kecepatan text
     speedText =  map(input,0,100,10,80);
-    Serial.println(String()+"speedText:"+speedText);
-    EEPROM.put(8, speedText);
+  //  Serial.println(String()+"speedText:"+speedText);
+    //EEPROM.put(8, speedText);
     server.send(200, "text/plain", "Kecepatan nama berhasil diupdate");
   }
-  // if (server.hasArg("mode")) {
-  //   mode = server.arg("mode").toInt(); // Atur mode
-  //   Serial.println(String()+"mode:"+mode);
-  //   Disp.clear();
-  //   (mode==1)? show = ANIM_JAM:show = ANIM_ZONK;
-  //   reset_x = 1; //reset tulisan dari awal
-  //   list    = 0; //reset urutan jadwal sholat
-  //   EEPROM.put(12, mode);
-  //   server.send(200, "text/plain", "Mode berhasil diupdate");
+
+  if (server.hasArg("Spdt")) {
+    int input = server.arg("Spdt").toInt(); // Atur kecepatan text
+    speedDate =  map(input,0,100,10,80);
+  //  Serial.println(String()+"speedDate:"+speedDate);
+    //EEPROM.put(8, speedDate);
+    server.send(200, "text/plain", "Kecepatan tanggal berhasil diupdate");
+  }
+
+  if (server.hasArg("Lk")) {
+    String data = server.arg("Lk"); 
+    //Serial.print(String()+"data:"+data);
+    parsingData(data);
+    flag=1;
+  }
+
+  if (server.hasArg("Iq")) { //iqomah
+    String data = server.arg("Iq"); 
+     // Mencari posisi tanda "-"
+    int separatorIndex = data.indexOf('-');
+
+    // Memisahkan angka pertama
+    int indexSholat = data.substring(0, separatorIndex).toInt();
+
+    // Memisahkan angka kedua
+    int indexKoreksi = data.substring(separatorIndex + 1).toInt();  
+    iqomah[indexSholat]=indexKoreksi;
+    Serial.println(String()+"iqomah:"+iqomah[indexSholat]=indexKoreksi);
+  }           
+
+  if (server.hasArg("Dy")) { //display off
+    String data = server.arg("Dy"); 
+     // Mencari posisi tanda "-"
+    int separatorIndex = data.indexOf('-');
+
+    // Memisahkan angka pertama
+    int indexSholat = data.substring(0, separatorIndex).toInt();
+
+    // Memisahkan angka kedua
+    int indexKoreksi = data.substring(separatorIndex + 1).toInt();  
+    displayBlink[indexSholat]=indexKoreksi;
+    Serial.println(String()+"dislayoff:"+displayBlink[indexSholat]=indexKoreksi);
+  }        
+
+  if (server.hasArg("Kr")) { //koreksi jadwal
+    String data = server.arg("Kr"); 
+     // Mencari posisi tanda "-"
+    int separatorIndex = data.indexOf('-');
+
+    // Memisahkan angka pertama
+    int indexSholat = data.substring(0, separatorIndex).toInt();
+
+    // Memisahkan angka kedua
+    int indexKoreksi = data.substring(separatorIndex + 1).toInt();  
+    dataIhty[indexSholat]=indexKoreksi;
+    Serial.println(String()+"koreksijadwal:"+dataIhty[indexSholat]=indexKoreksi);
+  }        
+
   
-  /*
   
-  */
-  ///////////////////////
-  if (server.hasArg("chijir")) {
-     config.chijir = server.arg("chijir").toInt(); // Atur koreksi tanggal hijriah
-    Serial.println(String()+"chijir:"+ config.chijir);
-    EEPROM.put(16, config.chijir);
-    server.send(200, "text/plain", "Selisih tanggal hijriah diupdate");
-  }
-  if (server.hasArg("durasiadzan")) {
-    config.durasiadzan = server.arg("durasiadzan").toInt(); // Atur durasi adzan
-    Serial.println(String()+"durasiadzan:"+config.durasiadzan);
-    EEPROM.put(20, config.durasiadzan);
-    server.send(200, "text/plain", "Durasi adzan diupdate");
-  }
-  if (server.hasArg("ihti")) {
-    config.ihti = server.arg("ihti").toInt(); // Atur koreksi waktu jadwal sholat
-    Serial.println(String()+"ihti:"+config.ihti);
-    EEPROM.put(24, config.ihti);
-    server.send(200, "text/plain", "Selisih jadwal sholat diupdate");
-  }
-  if (server.hasArg("latitude")) {
-    config.latitude = server.arg("latitude").toFloat(); // Atur latitude
-    Serial.println(String()+"latitude:"+config.latitude);
-    tulisFloatEEPROM(28, config.latitude);
-    server.send(200, "text/plain", "Nilai latitude diupdate");
-    flag=1;
-  }
-  if (server.hasArg("longitude")) {
-    config.longitude = server.arg("longitude").toFloat(); // Atur longitude
-    Serial.println(String()+"longitude:"+config.longitude);
-    tulisFloatEEPROM(38, config.longitude);
-    server.send(200, "text/plain", "Nilai longitude diupdate");
-    flag=1;
-  }
-  if (server.hasArg("zonawaktu")) {
-    config.zonawaktu = server.arg("zonawaktu").toInt(); // Atur zona waktu
-    Serial.println(String()+"zonawaktu:"+config.zonawaktu);
-    EEPROM.put(48, config.zonawaktu);
-    server.send(200, "text/plain", "Nilai zona waktu diupdate");
-    flag=1;
-  }
-  if (server.hasArg("buzzer")) {
-    stateBuzzer = server.arg("buzzer").toInt(); // Atur status buzzer
-    Serial.println(String()+"stateBuzzer:"+stateBuzzer);
-    EEPROM.put(52, stateBuzzer);
+  if (server.hasArg("Bzr")) {
+    stateBuzzer = server.arg("Bzr").toInt(); // Atur status buzzer
+    //Serial.println(String()+"stateBuzzer:"+stateBuzzer);
+    //EEPROM.put(52, stateBuzzer);
     server.send(200, "text/plain", (stateBuzzer)?"Suara Diaktifkan":"Suara Dimatikan");
   }
   if (server.hasArg("status")) {
     server.send(200, "text/plain", "CONNECTED");
   }
 /////////////////
-  if (server.hasArg("newPassword")) {
-    String newPassword = server.arg("newPassword");
-    if(newPassword.length()==8){
-      Serial.println(String()+"newPassword:"+newPassword);
-      newPassword.toCharArray(password, newPassword.length() + 1); // Set password baru
-      saveStringToEEPROM(56, password); // Simpan password AP
-      server.send(200, "text/plain", "Password WiFi diupdate");
-    }else{ Buzzer(2); Serial.println("panjang password melebihi 8 karakter"); }
-  } 
+//  if (server.hasArg("newPassword")) {
+//    String newPassword = server.arg("newPassword");
+//    if(newPassword.length()==8){
+//      Serial.println(String()+"newPassword:"+newPassword);
+//      newPassword.toCharArray(password, newPassword.length() + 1); // Set password baru
+//      //saveStringToEEPROM(56, password); // Simpan password AP
+//      server.send(200, "text/plain", "Password WiFi diupdate");
+//    }else{ Buzzer(2); Serial.println("panjang password melebihi 8 karakter"); }
+  //} 
    // write the data to EEPROM
-  boolean ok1 = EEPROM.commit();
-  Serial.println((ok1) ? "First commit OK" : "Commit failed");
+  //boolean ok1 = EEPROM.commit();
+  //Serial.println((ok1) ? "First commit OK" : "Commit failed");
   if(flag){JadwalSholat(); flag=0;}
-  delay(100);
-  (stateBuzzer==1)?Buzzer(0) : digitalWrite(BUZZ,LOW);
+  //delay(50);
+  (stateBuzzer==1)?Buzzer(0) : digitalWrite(BUZZ,HIGH);
   
   //server.send(200, "text/plain", "Pengaturan berhasil diupdate dan disimpan ke EEPROM!");
 }
@@ -449,7 +482,7 @@ void loadFromEEPROM() {
   Serial.println(String()+"loadedPassword:"+loadedPassword);
   Serial.println(String()+"stateBuzzer   :"+stateBuzzer);
 }
-
+RtcDateTime now = Rtc.GetDateTime();
 void setup() {
   Serial.begin(115200);
   pinMode(BUZZ, OUTPUT); 
@@ -486,10 +519,10 @@ void setup() {
       Buzzer(0);
       delay(80);
   }
-
+  AP_init();   //Inisialisasi Access Pointt
   Disp_init(); //Inisialisasi display
-  //AP_init();   //Inisialisasi Access Pointt
-  JadwalSholat();
+  
+  //JadwalSholat();
 }
 
 void loop() {
@@ -497,32 +530,57 @@ void loop() {
   //server.handleClient(); // Menangani permintaan dari MIT App Inventor
   check();
   islam();
-   showAnimasi();
-//  switch(show){
-//    case ANIM_ZONK :
-//     runningInfoMode2(); 
-//    break;
-//    case ANIM_JAM :
-//     runAnimasiJam();
-//     runningInfoMode1(); 
-//    break;
-//    case ANIM_DATE :
-//     runAnimasiDate();
-//     runningInfoMode1(); 
-//    break;
-//    case ANIM_SHOLAT :
-//     runAnimasiSholat();
-//    break;
-//    case ANIM_ADZAN :
-//     drawAzzan();
-//    break;
-//  };
+  //checkConnectedDevices();
+  
+  switch(show){
+    case ANIM_JAM :
+     drawTime();
+     drawDate();
+//     logo1(33);
+//     logo2(0);
+    break;
+    case ANIM_ADZAN :
+     drawAzzan();
+    break;
+    case ANIM_IQOMAH :
+     drawIqomah();
+    break;
+    case ANIM_BLINK :
+     blinkBlock();
+    break;
+  };
   // Serial.println(String()+"adzan          :"+adzan);
   // Serial.println(String()+"reset_x        :"+reset_x);
 }
 
+// Cek jumlah perangkat yang terhubung ke AP
+void checkConnectedDevices() {
+  int connectedDevices = WiFi.softAPgetStationNum(); // Mendapatkan jumlah perangkat terhubung
+//  Serial.print("Perangkat terhubung: ");
+//  Serial.println(connectedDevices);
+ fType(0);
+  if (connectedDevices > 0) {
+    Disp.drawText(0, 0, "HP Tersambung!");
+  } else {
+    Disp.drawText(0, 0, "Menunggu koneksi...");
+  }
+}
 
+void logo1 (uint8_t x){
+  static const uint8_t logo1[] PROGMEM = {
+    16,16,
+    0x06, 0x60, 0x06, 0xe3, 0x0c, 0xe3, 0x00, 0x01, 0x02, 0x05, 0x06, 0x6d, 0x4e, 0x6d, 0x5e, 0x6d, 0x7e, 0x6d, 0x36, 0x6d, 0x06, 0x6d, 0x06, 0x6d, 0x06, 0x6d, 0x07, 0xfd, 0x03, 0x98, 0x00, 0x00
+  };
+  Disp.drawBitmap(x,0,logo1);
+}
 
+void logo2 (uint8_t x){
+  static const uint8_t logo2[] PROGMEM = {
+    16,16,
+    0x00, 0x00, 0x13, 0x00, 0x1b, 0x00, 0x18, 0x38, 0x08, 0x2c, 0x0c, 0x78, 0x0d, 0xf0, 0x07, 0x00, 0x07, 0xff, 0x0c, 0x7c, 0x1d, 0xe0, 0x77, 0x80, 0xe3, 0x80, 0x83, 0x80, 0x01, 0x80, 0x00, 0x00
+};
+  Disp.drawBitmap(x,0,logo2);
+}
 
 void Buzzer(uint8_t state)
   {
@@ -630,55 +688,48 @@ int I2C_ClearBus() {
   return 0; // all ok
 }
 
-void parsingData(String text,float data1=0,float data2=0,int data3=0){
+void parsingData(String data){
+  // Data string
+  //String data = "0.1234-111.2345-7";
   
+  char charData[20]; 
+  data.toCharArray(charData, sizeof(charData));
 
-//String data = "0.1234-111.2345-7"; // Data string
-char charData[20];                 // Buffer untuk char array
-char *token;
-char *savePtr;                      // Pointer untuk strtok_r()
-float angkaFloat[10];                // Array untuk float
-int angkaInt[10];                    // Array untuk int
-int indexFloat = 0, indexInt = 0;     // Indeks array
+  // Buffer untuk strtok_r()
+  char *token;
+  char *savePtr;
 
-bool prosesSelesai = false;           // Flag untuk menandakan proses selesai
+  // Array penyimpanan angka
+  float angkaFloat[10];
+  int angkaInt[10];
+  int indexFloat = 0, indexInt = 0;
 
-
-
-  // Konversi String ke char array
-  text.toCharArray(charData, sizeof(charData));
-
-  // Mulai pemrosesan token pertama
+  // Mulai parsing pertama
   token = strtok_r(charData, "-", &savePtr);
 
-
-
-  if (!prosesSelesai && token != NULL) {
+  while (token != NULL) { // Menggunakan while karena hanya dijalankan sekali
     Serial.print("Nilai ditemukan: ");
     Serial.println(token);
 
-    // Cek apakah angka mengandung titik (float) atau tidak (int)
+    // Cek apakah token mengandung titik (float) atau tidak (int)
     if (strchr(token, '.') != NULL) {
-      angkaFloat[indexFloat] = atof(token);
-      Serial.print("Disimpan sebagai float: ");
-      Serial.println(angkaFloat[indexFloat], 5);
+      dataFloat[indexFloat] = atof(token);
+//      Serial.print("Disimpan sebagai float: ");
+//      Serial.println(dataFloat[indexFloat], 5);
+      config.latitude = dataFloat[0];
+      config.longitude = dataFloat[1];
       indexFloat++;
     } else {
-      angkaInt[indexInt] = atoi(token);
-      Serial.print("Disimpan sebagai int: ");
-      Serial.println(angkaInt[indexInt]);
-      data3 = angkaInt[indexInt];
+      dataInteger[indexInt] = atoi(token);
+//      Serial.print("Disimpan sebagai int: ");
+//      Serial.println(dataInteger[indexInt]);
+      config.zonawaktu = dataInteger[0];
       indexInt++;
     }
 
-    // Ambil nilai berikutnya pada loop berikutnya
+    // Ambil nilai berikutnya
     token = strtok_r(NULL, "-", &savePtr);
-  } else if (!prosesSelesai) {
-    Serial.println("\nProses parsing selesai!");
-    prosesSelesai = true; // Set flag agar tidak memproses lagi
   }
 
-//  // Kode lain di loop() tetap berjalan lancar
-//  delay(100); // Bisa diganti dengan tugas lain seperti update panel P10
-
+  //Serial.println("\nParsing selesai di proses()");
 }
