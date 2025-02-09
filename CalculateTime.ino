@@ -1,8 +1,9 @@
+
 //////hijiriyah voidku/////////////////////////////////////////////////
 void islam() {
-  //
+  
   waktuMagrib = {trigJam, trigMenit};
- 
+  
   // Serial.println("trigJam  :" + String(trigJam));
   // Serial.println("trigMenit:" + String(trigMenit));
 
@@ -19,9 +20,26 @@ void islam() {
                   tanggalHijriah, tanggalJawa);
   printKonversi(tanggalMasehi, tanggalHijriah, tanggalJawa);
 
-  //while (1);
+  yield();
 }
 
+double get_julian_date(Tanggal tanggal)
+{
+  if (tanggal.bulan <= 2) {
+    tanggal.tahun--;
+    tanggal.bulan += 12;
+  }
+
+  int a = tanggal.tahun / 100;
+  int b = 2 - a + (a / 4);
+
+  if (tanggal.tahun < 1583) b = 0;
+  if (tanggal.tahun == 1582 && tanggal.bulan == 10 && tanggal.tanggal > 4) b = -10;
+
+  return (365.25 * (tanggal.tahun + 4716)) + (30.6001 * (tanggal.bulan + 1)) + tanggal.tanggal + b - 1524.5;
+}
+
+/*
 double get_julian_date(Tanggal tanggal)
 {
   if (tanggal.bulan <= 2)
@@ -47,7 +65,7 @@ double get_julian_date(Tanggal tanggal)
 
   return floor(365.25 * (tanggal.tahun + 4716)) + floor(30.6001 *
          (tanggal.bulan + 1)) + tanggal.tanggal + b - 1524.5;
-}
+}*/
 
 double konversiTanggalHijriahKeJulianDate(uint16_t tahun, uint8_t
     bulan, uint8_t tanggal)
@@ -117,25 +135,42 @@ void printKonversi(TanggalDanWaktu tanggalMasehi, Tanggal
 }
 
 // digunakan untuk menghitung hari pasaran
-  int jumlahhari(){ 
+int jumlahhari() { 
   RtcDateTime now = Rtc.GetDateTime();
-  int d= now.Day();
-  int m= now.Month();
-  int y= now.Year();
-  int hb[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+  int d = now.Day();
+  int m = now.Month();
+  int y = now.Year();
+
+  static const int hb[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
   int ht = (y - 1970) * 365 - 1;
   int hs = hb[m - 1] + d;
-  int kab = 0;
-  int i;
-  if(y % 4 == 0) {
-    if(m > 2) {
-    hs++;
-    }
-  }
-  for(i = 1970; i < y; i++) {
-    if(i % 4 == 0) {
-    kab++;
-    }
-  }
-  return (ht + hs + kab); 
+
+  if (y % 4 == 0 && m > 2) hs++; // Tambahkan 1 hari jika tahun kabisat dan lewat Februari
+
+  int kab = (y - 1969) / 4;  // Hitung langsung jumlah tahun kabisat
+
+  return (ht + hs + kab);
 }
+
+//  int jumlahhari(){ 
+//  RtcDateTime now = Rtc.GetDateTime();
+//  int d= now.Day();
+//  int m= now.Month();
+//  int y= now.Year();
+//  int hb[] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
+//  int ht = (y - 1970) * 365 - 1;
+//  int hs = hb[m - 1] + d;
+//  int kab = 0;
+//  int i;
+//  if(y % 4 == 0) {
+//    if(m > 2) {
+//    hs++;
+//    }
+//  }
+//  for(i = 1970; i < y; i++) {
+//    if(i % 4 == 0) {
+//    kab++;
+//    }
+//  }
+//  return (ht + hs + kab); 
+//}
